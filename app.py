@@ -7,6 +7,7 @@ import os
 st.set_page_config(page_title="Task Web App", page_icon="✅", layout="centered")
 
 DB_FILE = "users.json"
+TASKS_FILE = "tasks.json"
 
 # Load users from file
 def load_users():
@@ -19,6 +20,18 @@ def load_users():
 def save_users(users):
     with open(DB_FILE, "w") as file:
         json.dump(users, file)
+
+# Load tasks from file
+def load_tasks():
+    if os.path.exists(TASKS_FILE):
+        with open(TASKS_FILE, "r") as file:
+            return json.load(file)
+    return {}
+
+# Save tasks to file
+def save_tasks(tasks):
+    with open(TASKS_FILE, "w") as file:
+        json.dump(tasks, file)
 
 # Hash password
 def hash_password(password):
@@ -47,7 +60,7 @@ def login(username, password):
     return True, "Login successful!"
 
 # Streamlit UI
-st.title("Task Web App")
+st.title("🎯 Task Web App")
 
 # Sidebar Menu
 menu = st.sidebar.selectbox("Menu", ["Signup", "Login"])
@@ -61,13 +74,65 @@ if menu == "Signup":
         st.success(message) if success else st.error(message)
 
 elif menu == "Login":
-    st.subheader("Login to Your Account")
+    st.subheader("🔑 Login to Your Account")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
     if st.button("Login"):
         success, message = login(username, password)
         if success:
             st.success(message)
-            st.subheader("Welcome to the Task Dashboard!")  # Show dashboard after login
+            st.session_state["logged_in"] = True
+            st.session_state["username"] = username
         else:
             st.error(message)
+
+# Task Dashboard (If logged in)
+if "logged_in" in st.session_state and st.session_state["logged_in"]:
+    st.subheader(f"🚀 Welcome, {st.session_state['username']}!")
+
+    # Stylish Task Dashboard Layout
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric(label="💰 Coins", value="500")
+    with col2:
+        st.metric(label="📝 Tasks Completed", value="2 / 10")
+    with col3:
+        st.metric(label="🎯 Referral Progress", value="3 / 10")
+
+    st.markdown("---")
+    
+    # Show Tasks
+    st.subheader("📌 Your Tasks for Today")
+    
+    tasks = load_tasks()
+    if st.session_state["username"] not in tasks:
+        tasks[st.session_state["username"]] = [
+            {"task": "Watch an ad", "completed": False},
+            {"task": "Complete a survey", "completed": False},
+            {"task": "Install a gaming app", "completed": False},
+        ]
+        save_tasks(tasks)
+
+    user_tasks = tasks[st.session_state["username"]]
+    
+    for i, task in enumerate(user_tasks):
+        with st.expander(f"🔹 {task['task']}"):
+            if task["completed"]:
+                st.success("✅ Task Completed!")
+            else:
+                if st.button(f"Mark as Complete ✅", key=i):
+                    user_tasks[i]["completed"] = True
+                    save_tasks(tasks)
+                    st.experimental_rerun()
+    
+    st.markdown("---")
+    st.subheader("💸 Withdraw Your Earnings")
+    if st.button("Withdraw Now"):
+        st.warning("Minimum 15,000 coins required for withdrawal!")
+
+    st.sidebar.markdown("---")
+    if st.sidebar.button("Logout"):
+        st.session_state["logged_in"] = False
+        st.session_state["username"] = None
+        st.experimental_rerun()

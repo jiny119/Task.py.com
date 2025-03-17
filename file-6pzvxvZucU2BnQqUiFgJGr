@@ -1,0 +1,7 @@
+import os
+
+file_path = "logo.png"
+if os.path.exists(file_path):
+    st.sidebar.image(file_path)
+else:
+    st.sidebar.write("Error: logo.png not found!")

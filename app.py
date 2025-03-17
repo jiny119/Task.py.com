@@ -3,6 +3,9 @@ import bcrypt
 import streamlit as st
 import os
 
+# Set Streamlit Page Config
+st.set_page_config(page_title="Task Web App", page_icon="✅", layout="centered")
+
 DB_FILE = "users.json"
 
 # Load users from file
@@ -42,3 +45,29 @@ def login(username, password):
     if not verify_password(password, users[username]):
         return False, "Incorrect password!"
     return True, "Login successful!"
+
+# Streamlit UI
+st.title("Task Web App")
+
+# Sidebar Menu
+menu = st.sidebar.selectbox("Menu", ["Signup", "Login"])
+
+if menu == "Signup":
+    st.subheader("Create a New Account")
+    new_username = st.text_input("Username")
+    new_password = st.text_input("Password", type="password")
+    if st.button("Signup"):
+        success, message = signup(new_username, new_password)
+        st.success(message) if success else st.error(message)
+
+elif menu == "Login":
+    st.subheader("Login to Your Account")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        success, message = login(username, password)
+        if success:
+            st.success(message)
+            st.subheader("Welcome to the Task Dashboard!")  # Show dashboard after login
+        else:
+            st.error(message)

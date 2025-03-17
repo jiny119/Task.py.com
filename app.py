@@ -1,14 +1,22 @@
 import streamlit as st
+import json
+import os
 import bcrypt
-import pandas as pd
 
-# Fake Database (Local Dictionary for Testing)
-users_db = {}
-tasks = [
-    {"id": 1, "task": "Watch an Ad", "completed": False},
-    {"id": 2, "task": "Complete a Survey", "completed": False},
-    {"id": 3, "task": "Install a Gaming App", "completed": False},
-]
+# Database file
+DB_FILE = "users.json"
+
+# Load users from file
+def load_users():
+    if os.path.exists(DB_FILE):
+        with open(DB_FILE, "r") as file:
+            return json.load(file)
+    return {}
+
+# Save users to file
+def save_users(users):
+    with open(DB_FILE, "w") as file:
+        json.dump(users, file, indent=4)
 
 # Function to Hash Password
 def hash_password(password):
@@ -20,72 +28,73 @@ def verify_password(password, hashed_password):
 
 # Signup Function
 def signup(username, password):
-    if username in users_db:
+    users = load_users()
+    if username in users:
         return False, "Username already exists!"
-    hashed_pw = hash_password(password)
-    users_db[username] = hashed_pw
+    
+    users[username] = {
+        "password": hash_password(password),
+        "tasks": {
+            "Watch an Ad": False,
+            "Complete a Survey": False,
+            "Install a Gaming App": False
+        }
+    }
+    save_users(users)
     return True, "Signup successful! You can now login."
 
 # Login Function
 def login(username, password):
-    if username not in users_db:
+    users = load_users()
+    if username not in users:
         return False, "User not found!"
-    if verify_password(password, users_db[username]):
-        st.session_state["logged_in"] = True
-        st.session_state["username"] = username
+    
+    if verify_password(password, users[username]["password"]):
         return True, "Login successful!"
     return False, "Incorrect password!"
 
 # Mark Task as Completed
-def complete_task(task_id):
-    for task in tasks:
-        if task["id"] == task_id:
-            task["completed"] = True
-            break
-
-# Logout Function
-def logout():
-    st.session_state["logged_in"] = False
-    st.session_state["username"] = None
+def complete_task(username, task):
+    users = load_users()
+    if username in users and task in users[username]["tasks"]:
+        users[username]["tasks"][task] = True
+        save_users(users)
+        return f"Task '{task}' completed!"
+    return "Task not found!"
 
 # Streamlit UI
-st.title("Task Earning App")
+st.title("Task Web App")
 
-if "logged_in" not in st.session_state:
-    st.session_state["logged_in"] = False
+menu = st.sidebar.selectbox("Menu", ["Signup", "Login"])
 
-if not st.session_state["logged_in"]:
-    option = st.selectbox("Select an option", ["Login", "Signup"])
+if menu == "Signup":
+    st.subheader("Create an Account")
+    new_user = st.text_input("Choose a Username")
+    new_pass = st.text_input("Choose a Password", type="password")
 
-    if option == "Signup":
-        st.subheader("Create an Account")
-        new_username = st.text_input("Choose a Username")
-        new_password = st.text_input("Choose a Password", type="password")
-        if st.button("Signup"):
-            success, message = signup(new_username, new_password)
-            st.success(message) if success else st.error(message)
+    if st.button("Signup"):
+        success, message = signup(new_user, new_pass)
+        if success:
+            st.success(message)
+        else:
+            st.error(message)
 
-    else:
-        st.subheader("Login to Your Account")
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        if st.button("Login"):
-            success, message = login(username, password)
-            st.success(message) if success else st.error(message)
+elif menu == "Login":
+    st.subheader("Login to Your Account")
+    user = st.text_input("Username")
+    passwd = st.text_input("Password", type="password")
 
-else:
-    st.subheader(f"Welcome, {st.session_state['username']}!")
+    if st.button("Login"):
+        success, message = login(user, passwd)
+        if success:
+            st.success(message)
 
-    # Task Dashboard
-    st.write("### Your Tasks")
-    task_df = pd.DataFrame(tasks)
-    st.table(task_df)
-
-    task_id = st.number_input("Enter Task ID to Complete", min_value=1, max_value=len(tasks), step=1)
-    if st.button("Mark as Completed"):
-        complete_task(task_id)
-        st.success(f"Task {task_id} marked as completed!")
-
-    if st.button("Logout"):
-        logout()
-        st.experimental_rerun()
+            # Show tasks after login
+            users = load_users()
+            st.subheader("Your Tasks:")
+            for task, completed in users[user]["tasks"].items():
+                if not completed:
+                    if st.button(f"Complete: {task}"):
+                        st.success(complete_task(user, task))
+        else:
+            st.error(message)

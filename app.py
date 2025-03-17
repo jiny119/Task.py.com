@@ -1,45 +1,62 @@
 import streamlit as st
+import json
+import os
 
-# User Data (Temporary)
-users = {"admin": "1234"}  # username: password
+# Database file
+DB_FILE = "users.json"
 
-# Session State Initialization
-if "logged_in" not in st.session_state:
-    st.session_state["logged_in"] = False
+# Load users from file
+def load_users():
+    if os.path.exists(DB_FILE):
+        with open(DB_FILE, "r") as file:
+            return json.load(file)
+    return {}
 
-def login_page():
-    st.title("Login Page")
+# Save users to file
+def save_users(users):
+    with open(DB_FILE, "w") as file:
+        json.dump(users, file)
+
+# Authentication function
+def authenticate(username, password):
+    users = load_users()
+    return users.get(username) == password
+
+# Signup function
+def signup(username, password):
+    users = load_users()
+    if username in users:
+        return False  # User already exists
+    users[username] = password
+    save_users(users)
+    return True
+
+# Streamlit UI
+st.title("Login / Signup Page")
+
+menu = st.selectbox("Select an option", ["Login", "Signup"])
+
+if menu == "Signup":
+    st.subheader("Create an Account")
+    new_username = st.text_input("Enter Username")
+    new_password = st.text_input("Enter Password", type="password")
+    
+    if st.button("Signup"):
+        if new_username and new_password:
+            if signup(new_username, new_password):
+                st.success("Signup successful! Now login.")
+            else:
+                st.error("Username already exists!")
+        else:
+            st.warning("Please enter all details!")
+
+elif menu == "Login":
+    st.subheader("Login to Your Account")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
+
     if st.button("Login"):
-        if username in users and users[username] == password:
-            st.session_state["logged_in"] = True
-            st.experimental_rerun()
+        if authenticate(username, password):
+            st.success(f"Welcome, {username}!")
         else:
-            st.error("Invalid Username or Password")
-
-def main_app():
-    st.title("Earn Coins by Completing Tasks!")
-    st.subheader("✅ Complete Tasks")
-    st.button("Watch Ad (5 Coins)")
-    st.button("Complete Survey (5 Coins)")
-    st.button("Install App (5 Coins)")
-
-    st.subheader("👥 Referral System")
-    st.button("Refer a Friend (5 Coins)")
-
-    st.subheader("🎯 Click Ads")
-    st.button("Click Ad (5 Coins)")
-
-    st.subheader("🏆 Your Balance")
-    st.write("💰 0 Coins")
-
-    if st.button("Logout"):
-        st.session_state["logged_in"] = False
-        st.experimental_rerun()
-
-# Login System Check
-if not st.session_state["logged_in"]:
-    login_page()
-else:
-    main_app()
+            st.error("Invalid username or password!")
